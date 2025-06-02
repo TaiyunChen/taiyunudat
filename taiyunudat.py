@@ -740,10 +740,10 @@ class DataAnalyzerApp:
         try:
             if isinstance(df_or_ddf, dd.DataFrame):
                 # 對於 Dask DataFrame，使用 compute() 來獲取唯一值
-                # 注意：這可能會很慢，如果數據量非常大，考慮抽樣
                 unique_values = df_or_ddf[column_name].unique().compute().tolist()
             else:
-                unique_values = df_or_ddf[column_name].unique().tolist()
+                # pandas.Series.unique() 回傳 numpy array，直接用 list() 包起來即可
+                unique_values = list(df_or_ddf[column_name].unique())
             # 在主線程中更新 UI
             self.root.after(0, self._load_unique_values_in_thread_callback, unique_values)
         except Exception as e:
@@ -839,7 +839,7 @@ class DataAnalyzerApp:
     def _apply_filter(self):
         self.start_time['套用篩選'] = time.time()
         self._update_time_display("正在套用篩選...")
-        
+
         selected_column = self.filter_column_var.get()
         if not selected_column or selected_column == "請選擇一個欄位...":
             messagebox.showwarning("錯誤", "請先選擇一個要篩選的欄位。")
@@ -1225,7 +1225,7 @@ class DataAnalyzerApp:
             self.end_time['檔案匯出'] = time.time()
             self._update_time_display("檔案匯出失敗", self.end_time['檔案匯出'] - self.start_time['檔案匯出'])
 
-    
+
     def _go_back_to_filter(self):
         self.start_time['返回篩選'] = time.time()
         self._update_time_display("返回篩選介面")
@@ -1247,10 +1247,10 @@ class DataAnalyzerApp:
             self.current_content_frame.pack(fill=tk.BOTH, expand=True)
             self._create_column_selection_widgets(self.current_content_frame)
 
-        self.file_label.config(text="未選擇檔案")
-        # 確保 next_step_button 在 _create_column_selection_widgets 被重新創建後才能被禁用
-        # 這裡會因為 _create_column_selection_widgets 內部調用而設置初始狀態，所以不需要特別處理
-        # self.next_step_button.config(state=tk.DISABLED) # 這個應該不需要，因為 _create_column_selection_widgets 會處理
+        # 修正：只有在沒有選擇檔案時才顯示「未選擇檔案`
+        if not self.file_path:
+            self.file_label.config(text="未選擇檔案")
+        # 否則保留原本的檔案名稱顯示
 
         # 清空所有已套用的篩選資訊
         self.applied_filters_display_data.clear()
@@ -1271,9 +1271,8 @@ class DataAnalyzerApp:
         self.end_time['返回篩選'] = time.time()
         self._update_time_display("返回篩選介面完成", self.end_time['返回篩選'] - self.start_time['返回篩選'])
 
-
-# 程式入口
 if __name__ == "__main__":
+    import tkinter as tk
     root = tk.Tk()
     app = DataAnalyzerApp(root)
     root.mainloop()
